@@ -1,129 +1,137 @@
-import React, { useEffect, useState } from "react";
-import { recipeAPI } from "../../api/recipe/recipeApi";
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { UtensilsCrossed, Search, Clock, Heart } from 'lucide-react'
+import { recipeAPI } from '../../api/recipe/recipeApi'
 
-const RecipeList = () => {
+function RecipeList() {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activeCategory, setActiveCategory] = useState('all')
 
-  const [recipes, setRecipes] = useState([]);
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const size = 10;
+  const [recipes, setRecipes] = useState([])
 
-  // =========================
-  // 🔥 리스트 조회
-  // =========================
-  const fetchRecipes = async (p = page, k = keyword) => {
-    try {
-      const res = await recipeAPI.list(p, size, k);
+  // 페이지네이션 추가
+  const [page, setPage] = useState(0)
+  const [size] = useState(6)
+  const [totalPages, setTotalPages] = useState(0)
 
-      console.log(res.data);
+  const [loading, setLoading] = useState(false)
 
-      // 👉 서버가 리스트만 주는 경우
-      setRecipes(res.data.list || res.data);
-
-      // 👉 서버가 totalPages 주는 경우 대비
-      setTotalPages(res.data.totalPages || 1);
-
-    } catch (err) {
-      console.error("리스트 조회 실패", err);
-    }
-  };
-
-  // page 변경 시 자동 조회
+  // API 호출
   useEffect(() => {
-    fetchRecipes(page, keyword);
-  }, [page]);
+    fetchRecipes()
+  }, [page, searchTerm])
 
-  // 검색
-  const handleSearch = () => {
-    setPage(1);
-    fetchRecipes(1, keyword);
-  };
+  const fetchRecipes = async () => {
+    setLoading(true)
+    try {
+      const res = await recipeAPI.list({
+        page,
+        size,
+        keyword: searchTerm,
+      })
+
+      // 👉 Spring Page 객체 기준
+      setRecipes(res.data.content)
+      setTotalPages(res.data.totalPages)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const categories = [
+    { key: 'all', label: '전체' },
+    { key: '한식', label: '한식' },
+    { key: '양식', label: '양식' },
+    { key: '중식', label: '중식' },
+    { key: '일식', label: '일식' },
+  ]
+
+  const filteredRecipes = recipes.filter(recipe => {
+    return activeCategory === 'all'
+      ? true
+      : recipe.category === activeCategory
+  })
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">
+          <UtensilsCrossed size={24} />
+          레시피 리스트
+        </h1>
+      </div>
 
       {/* 검색 */}
-      <div style={{ marginBottom: "20px" }}>
+      <div className="search-bar">
+        <Search size={20} />
         <input
           type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
           placeholder="레시피 검색"
+          value={searchTerm}
+          onChange={e => {
+            setSearchTerm(e.target.value)
+            setPage(0) // 검색 시 첫 페이지로
+          }}
         />
-        <button onClick={handleSearch}>검색</button>
       </div>
+
+      {/* 카테고리 */}
+      <div className="filter-tabs">
+        {categories.map(cat => (
+          <button
+            key={cat.key}
+            className={`filter-tab ${activeCategory === cat.key ? 'active' : ''}`}
+            onClick={() => {
+              setActiveCategory(cat.key)
+              setPage(0)
+            }}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 로딩 */}
+      {loading && <div>로딩중...</div>}
 
       {/* 리스트 */}
-      <div style={{ display: "grid", gap: "15px" }}>
-
-        {recipes.length === 0 ? (
-          <p>데이터 없음</p>
-        ) : (
-          recipes.map((recipe) => (
-            <div
-              key={recipe.recipeId}
-              style={{
-                display: "flex",
-                gap: "15px",
-                border: "1px solid #ddd",
-                padding: "10px",
-                borderRadius: "8px",
-                cursor: "pointer"
-              }}
-              onClick={() =>
-                window.location.href = `/recipe/${recipe.recipeId}`
-              }
-            >
-              <img
-                src={recipe.thumbnailUrl || "/images/default.png"}
-                alt="thumbnail"
-                style={{
-                  width: "120px",
-                  height: "120px",
-                  objectFit: "cover",
-                  borderRadius: "8px"
-                }}
-              />
-
-              <div>
-                <h3>{recipe.title}</h3>
-                <p>작성자: {recipe.memberId}</p>
-                <p>
-                  {recipe.createdAt &&
-                    new Date(recipe.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          ))
-        )}
+      <div className="recipe-grid">
+        {filteredRecipes.map(recipe => (
+          <Link
+            key={recipe.id}
+            to={`/recipe/${recipe.id}`}
+            className="recipe-card"
+          >
+            <img src={recipe.image} alt={recipe.name} />
+            <h3>{recipe.name}</h3>
+          </Link>
+        ))}
       </div>
 
-      {/* 페이징 */}
-      <div style={{ marginTop: "20px" }}>
+      {/* 페이지네이션 */}
+      <div className="pagination">
         <button
-          onClick={() => setPage((p) => Math.max(p - 1, 1))}
-          disabled={page === 1}
+          disabled={page === 0}
+          onClick={() => setPage(prev => prev - 1)}
         >
           이전
         </button>
 
-        <span style={{ margin: "0 10px" }}>
-          {page} / {totalPages}
+        <span>
+          {page + 1} / {totalPages}
         </span>
 
         <button
-          onClick={() =>
-            setPage((p) => (p < totalPages ? p + 1 : p))
-          }
-          disabled={page >= totalPages}
+          disabled={page + 1 === totalPages}
+          onClick={() => setPage(prev => prev + 1)}
         >
           다음
         </button>
       </div>
-
     </div>
-  );
-};
+  )
+}
 
-export default RecipeList;
+export default RecipeList
