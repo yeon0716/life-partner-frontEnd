@@ -7,8 +7,10 @@ export const memberAPI = {
   verify: (email, code) =>
     api.post(`/api/member/verify?email=${email}&code=${code}`),
 
-  signup: (data) =>
-    api.post("/api/member/signup", data),
+  signup: (data) => {
+    console.log("data : ", data);
+    return api.post("/api/member/signup", data);
+  },
 
   login: (data) =>
     api.post("/api/member/login", data),

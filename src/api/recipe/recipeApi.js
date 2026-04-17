@@ -15,8 +15,18 @@ export const recipeAPI = {
     });
   },
 
-list: (page, size, keyword) =>
-  api.get(`/api/recipes?page=${page}&size=${size}&keyword=${keyword}`),
+  list: (page, size, keyword, categoryId) =>
+    api.get('/api/recipes', {
+      params: {
+        page,
+        size,
+        keyword,
+        categoryId
+      },
+    }),
+
+  getCategories: () =>
+    api.get('/api/recipes/categories'), // 🔥 추가
 
   detail: (id) => api.get(`/api/recipes/${id}`),
 

@@ -1,38 +1,51 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { UtensilsCrossed, Search, Clock, Heart } from 'lucide-react'
+import { UtensilsCrossed, Search } from 'lucide-react'
 import { recipeAPI } from '../../api/recipe/recipeApi'
 
 function RecipeList() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeCategory, setActiveCategory] = useState('all')
-
+  const [categories, setCategories] = useState([])
   const [recipes, setRecipes] = useState([])
 
-  // 페이지네이션 추가
-  const [page, setPage] = useState(0)
+  const [categoryId, setCategoryId] = useState(null) // 🔥 추가
+
+  const [page, setPage] = useState(1)
   const [size] = useState(6)
-  const [totalPages, setTotalPages] = useState(0)
 
   const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
 
-  // API 호출
+  /* =========================
+     레시피 조회
+  ========================= */
   useEffect(() => {
     fetchRecipes()
-  }, [page, searchTerm])
+  }, [page, categoryId, searchTerm]) // 🔥 추가
 
   const fetchRecipes = async () => {
     setLoading(true)
+
     try {
-      const res = await recipeAPI.list({
+      const res = await recipeAPI.list(
         page,
         size,
-        keyword: searchTerm,
-      })
+        searchTerm,
+        categoryId // 🔥 수정
+      )
 
-      // 👉 Spring Page 객체 기준
-      setRecipes(res.data.content)
-      setTotalPages(res.data.totalPages)
+      const newData = res.data || []
+
+      if (page === 1) {
+        setRecipes(newData)
+      } else {
+        setRecipes(prev => [...prev, ...newData])
+      }
+
+      if (newData.length < size) {
+        setHasMore(false)
+      }
+
     } catch (err) {
       console.error(err)
     } finally {
@@ -40,20 +53,29 @@ function RecipeList() {
     }
   }
 
-  const categories = [
-    { key: 'all', label: '전체' },
-    { key: '한식', label: '한식' },
-    { key: '양식', label: '양식' },
-    { key: '중식', label: '중식' },
-    { key: '일식', label: '일식' },
-  ]
+  /* =========================
+     카테고리 조회
+  ========================= */
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
-  const filteredRecipes = recipes.filter(recipe => {
-    return activeCategory === 'all'
-      ? true
-      : recipe.category === activeCategory
-  })
+  const fetchCategories = async () => {
+    try {
+      const res = await recipeAPI.getCategories()
 
+      setCategories([
+        { categoryId: null, categoryName: '전체' },
+        ...(res.data || []),
+      ])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  /* =========================
+     UI
+  ========================= */
   return (
     <div className="page-container">
       <div className="page-header">
@@ -72,7 +94,9 @@ function RecipeList() {
           value={searchTerm}
           onChange={e => {
             setSearchTerm(e.target.value)
-            setPage(0) // 검색 시 첫 페이지로
+            setRecipes([])
+            setPage(1)      // 🔥 0 → 1 수정
+            setHasMore(true)
           }}
         />
       </div>
@@ -81,55 +105,56 @@ function RecipeList() {
       <div className="filter-tabs">
         {categories.map(cat => (
           <button
-            key={cat.key}
-            className={`filter-tab ${activeCategory === cat.key ? 'active' : ''}`}
+            key={cat.categoryId ?? 'all'}
+            className={`filter-tab ${
+              categoryId === cat.categoryId ? 'active' : ''
+            }`}
             onClick={() => {
-              setActiveCategory(cat.key)
-              setPage(0)
+              setCategoryId(cat.categoryId)
+              setRecipes([])
+              setPage(1)
+              setHasMore(true)
             }}
           >
-            {cat.label}
+            {cat.categoryName}
           </button>
+        ))}
+      </div>
+
+      {/* 리스트 */}
+      <div className="recipe-grid">
+        {recipes.map(recipe => (  // 🔥 filteredRecipes 제거
+          <Link
+            key={recipe.recipeId}
+            to={`/recipe/${recipe.recipeId}`}
+            className="recipe-card"
+          >
+            <img
+              src={`${process.env.REACT_APP_API_BASE_URL}${recipe.thumbnailUrl}`}
+              alt={recipe.title}
+            />
+            <h3>{recipe.title}</h3>
+          </Link>
         ))}
       </div>
 
       {/* 로딩 */}
       {loading && <div>로딩중...</div>}
 
-      {/* 리스트 */}
-      <div className="recipe-grid">
-        {filteredRecipes.map(recipe => (
-          <Link
-            key={recipe.id}
-            to={`/recipe/${recipe.id}`}
-            className="recipe-card"
-          >
-            <img src={recipe.image} alt={recipe.name} />
-            <h3>{recipe.name}</h3>
-          </Link>
-        ))}
-      </div>
+      {/* 더보기 */}
+      {hasMore && !loading && (
+        <div className="text-center mt-4">
+          <button onClick={() => setPage(prev => prev + 1)}>
+            더보기
+          </button>
+        </div>
+      )}
 
-      {/* 페이지네이션 */}
-      <div className="pagination">
-        <button
-          disabled={page === 0}
-          onClick={() => setPage(prev => prev - 1)}
-        >
-          이전
-        </button>
-
-        <span>
-          {page + 1} / {totalPages}
-        </span>
-
-        <button
-          disabled={page + 1 === totalPages}
-          onClick={() => setPage(prev => prev + 1)}
-        >
-          다음
-        </button>
-      </div>
+      {!hasMore && (
+        <div className="text-center mt-4">
+          마지막 레시피입니다
+        </div>
+      )}
     </div>
   )
 }

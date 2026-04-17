@@ -1,9 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { recipeAPI } from "../../api/recipe/recipeApi";
+import { useNavigate } from "react-router-dom";
 
 export default function RecipeEditor() {
+  const navigate = useNavigate();
+
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState([]);
+  const [categories, setCategories] = useState([])
+  const [categoryId, setCategoryId] = useState(null);
 
   // 텍스트 추가
   const addTextBlock = () => {
@@ -16,6 +21,23 @@ export default function RecipeEditor() {
       }
     ]);
   };
+
+   useEffect(() => {
+      fetchCategories()
+    }, [])
+  
+    const fetchCategories = async () => {
+      try {
+        const res = await recipeAPI.getCategories()
+  
+        setCategories([
+          { categoryId: null, categoryName: '전체' },
+          ...(res.data || []),
+        ])
+      } catch (err) {
+        console.error(err)
+      }
+    }
 
   // 이미지 추가
   const handleImageUpload = (e) => {
@@ -39,6 +61,7 @@ export default function RecipeEditor() {
     updated[index].content = value;
     setBlocks(updated);
   };
+  
 
   // 등록
   const createRecipe = async () => {
@@ -67,13 +90,21 @@ export default function RecipeEditor() {
       // 2. JWT 기반 요청 (memberId 제거)
       const payload = {
         title,
+        categoryId, 
         blockList: processedBlocks
       };
+
+      if (!categoryId) {
+        alert("카테고리 선택하세요");
+        return;
+      }
 
       // 3. 등록
       await recipeAPI.create(payload);
 
       alert("레시피 등록 완료!");
+      navigate("/recipe");
+
     } catch (err) {
       console.error(err);
       alert("등록 실패");
@@ -81,39 +112,70 @@ export default function RecipeEditor() {
   };
 
   return (
-    <div style={{ width: "600px", margin: "0 auto" }}>
-      <h2>레시피 작성</h2>
+  <div className="recipe-editor-container">
+    <h2 className="recipe-editor-title">레시피 작성</h2>
 
-      <input
-        type="text"
-        placeholder="제목"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        style={{ width: "100%", padding: "10px" }}
-      />
+    {/* 제목 */}
+    <input
+      type="text"
+      placeholder="제목을 입력하세요"
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      className="recipe-editor-input"
+    />
 
-      <button onClick={addTextBlock}>+ 텍스트 추가</button>
-      <input type="file" onChange={handleImageUpload} />
-
-      <div style={{ marginTop: "20px" }}>
-        {blocks.map((block, index) => (
-          <div key={index} style={{ marginBottom: "15px" }}>
-            {block.blockType === "TEXT" ? (
-              <textarea
-                value={block.content}
-                onChange={(e) => handleTextChange(index, e.target.value)}
-                style={{ width: "100%", height: "80px" }}
-              />
-            ) : (
-              <img src={block.content} alt="preview" style={{ width: "100%" }} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      <button onClick={createRecipe} style={{ marginTop: "20px" }}>
-        등록
-      </button>
+    {/* 카테고리 */}
+    <div className="recipe-editor-category">
+      {categories.map((cat) => (
+        <button
+          key={cat.categoryId ?? "all"}
+          className={`recipe-editor-category-btn ${
+            categoryId === cat.categoryId ? "active" : ""
+          }`}
+          onClick={() => setCategoryId(cat.categoryId)}
+        >
+          {cat.categoryName}
+        </button>
+      ))}
     </div>
-  );
+
+    {/* 버튼 영역 */}
+    <div className="recipe-editor-actions">
+      <button onClick={addTextBlock} className="btn">
+        + 텍스트 추가
+      </button>
+
+      <label className="btn file-btn">
+        이미지 추가
+        <input type="file" onChange={handleImageUpload} hidden />
+      </label>
+    </div>
+
+    {/* 블록 영역 */}
+    <div className="recipe-editor-blocks">
+      {blocks.map((block, index) => (
+        <div key={index} className="recipe-editor-block">
+          {block.blockType === "TEXT" ? (
+            <textarea
+              value={block.content}
+              onChange={(e) => handleTextChange(index, e.target.value)}
+              className="recipe-editor-textarea"
+            />
+          ) : (
+            <img
+              src={block.content}
+              alt="preview"
+              className="recipe-editor-image"
+            />
+          )}
+        </div>
+      ))}
+    </div>
+
+    {/* 등록 버튼 */}
+    <button onClick={createRecipe} className="recipe-editor-submit">
+      등록
+    </button>
+  </div>
+);
 }
