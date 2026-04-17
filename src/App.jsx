@@ -1,8 +1,9 @@
-import './App.css';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import Login from './pages/login/Login';
 import Signup from './pages/signup/Signup';
 import { Toaster } from 'sonner';
+import RecipeList from './pages/recipe/RecipeList';
+import RecipeEditor from './pages/recipe/RecipeEditor';
 
 function App() {
   return (
@@ -13,6 +14,8 @@ function App() {
         {/* 기본 접속 시 로그인으로 이동 */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/recipe" element={<RecipeList />} />
+        <Route path="/recipeEdit" element={<RecipeEditor />} />
 
         {/* 없는 경로 처리 */}
         <Route path="*" element={<Navigate to="/login" />} />
