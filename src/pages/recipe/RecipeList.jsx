@@ -197,16 +197,27 @@ function RecipeList() {
 
                 {/* BOOKMARK */}
                 <button
-                  disabled={loadingMap[`bookmark-${recipe.recipeId}`]}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    toggle(recipe.recipeId, 'bookmark')
-                  }}
-                  className="icon-btn"
-                >
+                    disabled={loadingMap[`bookmark-${recipe.recipeId}`]}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      toggle(recipe.recipeId, 'bookmark')
+                    }}
+                    style={{
+                      pointerEvents: 'auto',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
                   {recipe.bookmarked ? (
-                    <BookmarkCheck size={16} className="text-primary" />
+                    <BookmarkCheck size={16} fill="currentColor" className="text-primary" />
                   ) : (
                     <Bookmark size={16} />
                   )}
