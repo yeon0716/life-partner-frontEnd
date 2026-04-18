@@ -32,5 +32,9 @@ export const recipeAPI = {
 
   update: (id, data) => api.put(`/api/recipes/${id}`, data),
 
-  delete: (id) => api.delete(`/api/recipes/${id}`)
+  delete: (id) => api.delete(`/api/recipes/${id}`),
+
+  bookmark: (id) => api.post(`/api/recipes/${id}/bookmark`),
+
+  like: (id) => api.post(`/api/recipes/${id}/like`),
 };

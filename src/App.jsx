@@ -4,6 +4,7 @@ import Signup from './pages/signup/Signup';
 import { Toaster } from 'sonner';
 import RecipeList from './pages/recipe/RecipeList';
 import RecipeEditor from './pages/recipe/RecipeEditor';
+import RecipeDetail from './pages/recipe/RecipeDetail';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/recipe" element={<RecipeList />} />
         <Route path="/recipeEdit" element={<RecipeEditor />} />
+        <Route path="/recipe/:recipeId" element={<RecipeDetail/>} />
 
         {/* 없는 경로 처리 */}
         <Route path="*" element={<Navigate to="/login" />} />
