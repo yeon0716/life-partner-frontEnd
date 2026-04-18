@@ -811,27 +811,6 @@ body {
   );
 }
 
-/* 버튼만 클릭 가능 */
-.recipe-overlay .bookmark-btn {
-  pointer-events: auto;
-
-  width: 34px;
-  height: 34px;
-  min-width: 34px;   /* 🔥 추가 (깨짐 방지) */
-  min-height: 34px;  /* 🔥 추가 */
-
-  border-radius: 50%; /* 🔥 확실한 원형 */
-  background: rgba(255,255,255,0.92);
-
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  cursor: pointer;
-  transition: 0.2s;
-}
-
 .recipe-overlay .bookmark-btn:hover {
   transform: scale(1.1);
   background: #fff;

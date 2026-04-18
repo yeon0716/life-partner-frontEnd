@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { UtensilsCrossed, Search, Bookmark, BookmarkCheck } from 'lucide-react'
+import { UtensilsCrossed, Search, Bookmark, BookmarkCheck, Heart } from 'lucide-react'
 import { recipeAPI } from '../../api/recipe/recipeApi'
 
 function RecipeList() {
@@ -15,7 +15,7 @@ function RecipeList() {
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
 
-  const [loadingBookmark, setLoadingBookmark] = useState(null)
+  const [loadingMap, setLoadingMap] = useState({})
 
   /* =========================
      데이터 호출
@@ -63,39 +63,64 @@ function RecipeList() {
   }
 
   /* =========================
-     북마크 토글 (안정화 버전)
+     통합 toggle (like / bookmark)
   ========================= */
-  const toggleBookmark = async (recipeId) => {
-    if (loadingBookmark === recipeId) return
+  const toggle = async (recipeId, type) => {
+    const key = `${type}-${recipeId}`
+    if (loadingMap[key]) return
 
     const current = recipes.find(r => r.recipeId === recipeId)
 
-    setLoadingBookmark(recipeId)
+    setLoadingMap(prev => ({
+      ...prev,
+      [key]: true,
+    }))
 
     // optimistic update
     setRecipes(prev =>
-      prev.map(r =>
-        r.recipeId === recipeId
-          ? { ...r, bookmarked: !r.bookmarked }
-          : r
-      )
+      prev.map(r => {
+        if (r.recipeId !== recipeId) return r
+
+        if (type === 'like') {
+          return {
+            ...r,
+            liked: !r.liked,
+            likes: r.liked ? r.likes - 1 : r.likes + 1,
+          }
+        }
+
+        if (type === 'bookmark') {
+          return {
+            ...r,
+            bookmarked: !r.bookmarked,
+          }
+        }
+
+        return r
+      })
     )
 
     try {
-      await recipeAPI.bookmark(recipeId)
+      if (type === 'like') {
+        await recipeAPI.like(recipeId)
+      } else if (type === 'bookmark') {
+        await recipeAPI.bookmark(recipeId)
+      }
     } catch (err) {
       console.error(err)
 
       // rollback
       setRecipes(prev =>
         prev.map(r =>
-          r.recipeId === recipeId
-            ? { ...r, bookmarked: current.bookmarked }
-            : r
+          r.recipeId === recipeId ? current : r
         )
       )
     } finally {
-      setLoadingBookmark(null)
+      setLoadingMap(prev => {
+        const copy = { ...prev }
+        delete copy[key]
+        return copy
+      })
     }
   }
 
@@ -169,32 +194,19 @@ function RecipeList() {
 
               {/* OVERLAY */}
               <div className="recipe-overlay">
+
+                {/* BOOKMARK */}
                 <button
-                  disabled={loadingBookmark === recipe.recipeId}
+                  disabled={loadingMap[`bookmark-${recipe.recipeId}`]}
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    toggleBookmark(recipe.recipeId)
+                    toggle(recipe.recipeId, 'bookmark')
                   }}
-                  style={{
-                    pointerEvents: 'auto',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255,255,255,0.9)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
+                  className="icon-btn"
                 >
                   {recipe.bookmarked ? (
-                    <BookmarkCheck
-                      size={16}
-                      fill="currentColor"
-                      className="text-primary"
-                    />
+                    <BookmarkCheck size={16} className="text-primary" />
                   ) : (
                     <Bookmark size={16} />
                   )}
@@ -211,8 +223,31 @@ function RecipeList() {
               <div className="recipe-title">{recipe.title}</div>
 
               <div className="recipe-meta">
+
                 <span>🍳 간단 레시피</span>
-                <span>▶ 보기</span>
+
+                {/* LIKE */}
+                <span
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggle(recipe.recipeId, 'like')
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Heart
+                    size={16}
+                    fill={recipe.liked ? 'red' : 'none'}
+                    color={recipe.liked ? 'red' : 'black'}
+                  />
+                  {recipe.likes}
+                </span>
+
               </div>
             </div>
 
