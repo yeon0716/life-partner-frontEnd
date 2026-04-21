@@ -1,81 +1,76 @@
-import React, { useEffect, useState } from "react";
-import { recipeAPI } from "../../api/recipe/recipeApi";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Save } from 'lucide-react'
+import { DIFFICULTY_OPTIONS } from '../../mock/data'
+import Input from '../../components/common/Input'
+import Select from '../../components/common/Select'
+import Button from '../../components/common/Button'
+import IngredientEditor from '../../components/recipe/IngredientEditor'
+import BlockEditor from '../../components/recipe/BlockEditor'
+import { useToast } from '../../components/common/Toast'
+import { recipeAPI } from '../../api/recipe/recipeApi'
 
-import {
-  DndContext,
-  closestCenter
-} from "@dnd-kit/core";
-
-import {
-  arrayMove,
-  SortableContext,
-  verticalListSortingStrategy
-} from "@dnd-kit/sortable";
-
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
-/* =========================
-   Sortable Block
-========================= */
-function SortableBlock({ id, children, onDelete }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="recipe-editor__block">
-      <div className="recipe-editor__drag-handle" {...attributes} {...listeners}>
-        ☰
-      </div>
-
-      <div className="recipe-editor__block-content">{children}</div>
-
-      <button
-        className="recipe-editor__delete"
-        onClick={onDelete}
-        type="button"
-      >
-        ✕
-      </button>
-    </div>
-  );
+const initialRecipe = {
+  title: '',
+  description: '',
+  cookingTime: '',
+  servings: '',
+  difficulty: '',
+  category: null,   // 🔥 이거 중요
+  thumbnail: '',
+  ingredients: [],
+  blockList: []
 }
 
-/* =========================
-   MAIN
-========================= */
-export default function RecipeEditor() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-
-  /* 기본 */
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-
-  /* 메타 */
+export default function RecipeEdit() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { addToast } = useToast()
+  const isEdit = Boolean(id)
+  const [recipe, setRecipe] = useState(initialRecipe)
+  const [errors, setErrors] = useState({})
   const [categories, setCategories] = useState([]);
-  const [categoryId, setCategoryId] = useState(null);
 
-  const [difficulty, setDifficulty] = useState("중");
-  const [cookingTime, setCookingTime] = useState("10분");
-  const [servings, setServings] = useState("1인분");
+  // 수정 루트일 때 api출력
+  useEffect(() => {
+    if (!id) return;
 
-  /* 재료 */
-  const [ingredients, setIngredients] = useState([]);
-  const [ingredientInput, setIngredientInput] = useState("");
+    const load = async () => {
+      try {
+        const res = await recipeAPI.detail(id);
+        const data = res.data;
 
-  /* 블록 */
-  const [blocks, setBlocks] = useState([]);
+        setRecipe({
+          title: data.title || '',
+          description: data.description || '',
+          category: data.categoryId || null,
+          difficulty: data.difficulty || '쉬움',
+          cookingTime: data.cookingTime || '10분',
+          servings: data.servings || '1인분',
 
-  /* =========================
-     카테고리
-  ========================= */
+          ingredients: (data.ingredientList || []).map(i => ({
+            id: crypto.randomUUID(),
+            name: i.name,
+            amount: i.amount || ''
+          })),
+
+          blockList: (data.blockList || []).map(b => ({
+            id: b.blockId || crypto.randomUUID(),
+            type: b.blockType,
+            content: b.content
+          }))
+        });
+
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    load();
+  }, [id]);
+  
+
+  // 카테고리 불러오기
   useEffect(() => {
     recipeAPI.getCategories().then((res) => {
       setCategories([
@@ -85,293 +80,221 @@ export default function RecipeEditor() {
     });
   }, []);
 
-  /* =========================
-     수정 로딩 (핵심 수정)
-  ========================= */
-  useEffect(() => {
-    if (!id) return;
-
-    const load = async () => {
-      try {
-        const res = await recipeAPI.detail(id);
-        const data = res.data;
-
-        console.log(data);
-
-        setTitle(data.title || "");
-        setDescription(data.description || "");
-        setCategoryId(data.categoryId);
-
-        setDifficulty(data.difficulty || "중");
-        setCookingTime(data.cookingTime || "10분");
-        setServings(data.servings || "1인분");
-
-        setIngredients(
-          (data.ingredientList || []).map(i => i.name || i)
-        );
-
-        setBlocks(
-          (data.blockList || []).map(b => ({
-            id: b.blockId || crypto.randomUUID(),
-            blockType: b.blockType,
-            content: b.content
-          }))
-        );
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    load();
-  }, [id]);
-
-  /* =========================
-     블록 추가
-  ========================= */
-  const addTextBlock = () => {
-    setBlocks(prev => [
-      ...prev,
-      { id: crypto.randomUUID(), blockType: "TEXT", content: "" }
-    ]);
-  };
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setBlocks(prev => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        blockType: "IMAGE",
-        file,
-        content: URL.createObjectURL(file)
-      }
-    ]);
-  };
-
-  const handleTextChange = (id, value) => {
-    setBlocks(prev =>
-      prev.map(b =>
-        b.id === id ? { ...b, content: value } : b
-      )
-    );
-  };
-
-  const deleteBlock = (id) => {
-    setBlocks(prev => prev.filter(b => b.id !== id));
-  };
-
-  /* =========================
-     재료
-  ========================= */
-  const addIngredient = (e) => {
-    if (e.key === "Enter" && ingredientInput.trim()) {
-      setIngredients(prev => [...prev, ingredientInput.trim()]);
-      setIngredientInput("");
+  // 값 업데이트
+  const updateField = (field, value) => {
+    setRecipe((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: null }))
     }
-  };
+  }
 
-  /* =========================
-     드래그
-  ========================= */
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  // validate 확인
+  const validate = () => {
+    const newErrors = {}
+    if (!recipe.title.trim()) newErrors.title = '제목을 입력해주세요'
+    if (!recipe.category) newErrors.category = '카테고리를 선택해주세요'
+    if (!recipe.difficulty) newErrors.difficulty = '난이도를 선택해주세요'
+    if (recipe.ingredients.length === 0) newErrors.ingredients = '재료를 추가해주세요'
+    if (recipe.blockList.length === 0) newErrors.blockList = '조리 순서를 추가해주세요'
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
-    setBlocks(items => {
-      const oldIndex = items.findIndex(i => i.id === active.id);
-      const newIndex = items.findIndex(i => i.id === over.id);
-      return arrayMove(items, oldIndex, newIndex);
-    });
-  };
+  // 등록 & 수정 submit
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  /* =========================
-     저장
-  ========================= */
-  const saveRecipe = async () => {
+      const token = localStorage.getItem("token")
+
+      if (!token) {
+        addToast({ type: 'error', message: "로그인 후 이용하실 수 있습니다."})
+        return
+      }
+
+    if (!validate()) {
+      addToast({ type: 'error', message: '필수 항목을 모두 입력해주세요' })
+      return
+    }
     try {
       const processedBlocks = await Promise.all(
-        blocks.map(async (b, i) => {
-          if (b.blockType === "IMAGE" && b.file) {
-            const res = await recipeAPI.uploadImage(b.file);
+        recipe.blockList.map(async (b, i) => {
+          // 이미지 파일 업로드
+          if (b.type === 'IMAGE' && b.file) {
+            const res = await recipeAPI.uploadImage(b.file)
             return {
-              blockType: "IMAGE",
+              blockType: 'IMAGE',
               content: res.data,
               sortOrder: i + 1
-            };
+            }
           }
-
           return {
-            blockType: b.blockType,
+            blockType: b.type,
             content: b.content,
             sortOrder: i + 1
-          };
+          }
         })
-      );
-
+      )
       const payload = {
-        title,
-        description,
-        categoryId,
-        difficulty,
-        cookingTime,
-        servings,
-        ingredientList: ingredients.map(i => ({
-          name: i
-        })),
-        blockList: processedBlocks
-      };
+        title: recipe.title,
+        description: recipe.description,
+        categoryId: recipe.category,
+        difficulty: recipe.difficulty,
+        cookingTime: recipe.cookingTime,
+        servings: recipe.servings,
 
-      if (id) {
-        await recipeAPI.update(id, payload);
-        alert("수정 완료");
-      } else {
-        await recipeAPI.create(payload);
-        alert("등록 완료");
+        ingredientList: recipe.ingredients.map((i, idx) => ({
+          name: i.name || i,
+          amount: i.amount || '',
+          sortOrder: idx + 1
+        })),
+
+        blockList: processedBlocks
       }
 
-      navigate("/recipe");
+      if (isEdit) {
+        await recipeAPI.update(id, payload)
+      } else {
+        await recipeAPI.create(payload)
+      }
+      addToast({
+        type: 'success',
+        message: isEdit ? '레시피 수정 완료' : '레시피 등록 완료'
+      })
+      navigate('/recipe')
+
     } catch (err) {
-      console.error(err);
-      alert("실패");
+      console.error(err)
+      addToast({
+        type: 'error',
+        message: '저장 실패'
+      })
     }
-  };
+  }
 
-  /* =========================
-     UI (건드리지 않음 유지)
-========================= */
   return (
-    <div className="recipe-editor">
-
-      <h2 className="recipe-editor__title">
-        {id ? "레시피 수정" : "레시피 작성"}
-      </h2>
-
-      <input
-        className="recipe-editor__input"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="제목"
-      />
-
-      <textarea
-        className="recipe-editor__textarea"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="설명"
-      />
-
-      <div className="recipe-editor__category">
-        {categories.map((c) => (
-          <button
-            key={c.categoryId ?? "all"}
-            className={`recipe-editor__category-btn ${
-              categoryId === c.categoryId
-                ? "recipe-editor__category-btn--active"
-                : ""
-            }`}
-            onClick={() => setCategoryId(c.categoryId)}
-          >
-            {c.categoryName}
-          </button>
-        ))}
-      </div>
-
-      <div className="recipe-editor__options">
-        {["1인분","2인분","3인분","4인분 이상"].map(s => (
-          <button
-            key={s}
-            className={`recipe-editor__btn ${servings === s ? "recipe-editor__btn--active":""}`}
-            onClick={() => setServings(s)}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      <div className="recipe-editor__options">
-        {["하","중","상"].map(d => (
-          <button
-            key={d}
-            className={`recipe-editor__btn ${difficulty === d ? "recipe-editor__btn--active":""}`}
-            onClick={() => setDifficulty(d)}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
-
-      <div className="recipe-editor__options">
-        {["10분","30분","1시간","1시간 이상"].map(t => (
-          <button
-            key={t}
-            className={`recipe-editor__btn ${cookingTime === t ? "recipe-editor__btn--active":""}`}
-            onClick={() => setCookingTime(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <input
-        className="recipe-editor__input"
-        value={ingredientInput}
-        onChange={(e) => setIngredientInput(e.target.value)}
-        onKeyDown={addIngredient}
-        placeholder="재료 입력 후 Enter"
-      />
-
-      <div className="recipe-editor__tags">
-        {ingredients.map((i, idx) => (
-          <span key={idx} className="recipe-editor__tag">
-            {i}
-            <button
-              onClick={() =>
-                setIngredients(prev => prev.filter((_, x) => x !== idx))
-              }
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-
-     {/* 블록 버튼 */}
-      <div className="recipe-editor__options">
-        <button className="recipe-editor__btn" onClick={addTextBlock}>
-          + 텍스트
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
         </button>
-
-        <label className="recipe-editor__btn">
-          이미지
-          <input type="file" hidden onChange={handleImageUpload} />
-        </label>
+        <h1 className="text-2xl font-bold text-foreground">
+          {isEdit ? '레시피 수정' : '새 레시피 등록'}
+        </h1>
       </div>
 
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-          <div className="recipe-editor__blocks">
-            {blocks.map(b => (
-              <SortableBlock key={b.id} id={b.id} onDelete={() => deleteBlock(b.id)}>
-                {b.blockType === "TEXT" ? (
-                  <textarea
-                    value={b.content}
-                    onChange={(e) => handleTextChange(b.id, e.target.value)}
-                  />
-                ) : (
-                  <img src={b.content} alt="" />
-                )}
-              </SortableBlock>
-            ))}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-card rounded-xl border p-4 space-y-4">
+          <h2 className="font-semibold">기본 정보</h2>
+          
+          <Input
+            label="제목"
+            value={recipe.title}
+            onChange={(e) => updateField('title', e.target.value)}
+            placeholder="레시피 제목을 입력하세요"
+            error={errors.title}
+          />
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">설명</label>
+            <textarea
+              value={recipe.description}
+              onChange={(e) => updateField('description', e.target.value)}
+              placeholder="레시피에 대한 간단한 설명"
+              className="min-h-[80px] p-3 rounded-lg border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
-        </SortableContext>
-      </DndContext>
 
-      <button onClick={saveRecipe}>
-        {id ? "수정" : "등록"}
-      </button>
+          {/* <Input
+            label="썸네일 URL"
+            value={recipe.thumbnail}
+            onChange={(e) => updateField('thumbnail', e.target.value)}
+            placeholder="이미지 URL을 입력하세요"
+          /> */}
 
+          {recipe.thumbnail && (
+            <img
+              src={recipe.thumbnail}
+              alt="Thumbnail preview"
+              className="w-full max-w-xs h-40 object-cover rounded-lg"
+              onError={(e) => {
+                e.target.style.display = 'none'
+              }}
+            />
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="카테고리"
+              value={recipe.category ?? ''}
+              onChange={(e) => updateField('category', Number(e.target.value))}
+              options={categories
+                .filter(c => c.categoryId !== null) // "전체" 제외
+                .map(c => ({
+                  label: c.categoryName,
+                  value: c.categoryId
+                }))
+              }
+              error={errors.category}
+            />
+            <Select
+              label="난이도"
+              value={recipe.difficulty}
+              onChange={(e) => updateField('difficulty', e.target.value)}
+              options={DIFFICULTY_OPTIONS}
+              error={errors.difficulty}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="조리 시간"
+              value={recipe.cookingTime}
+              onChange={(e) => updateField('cookingTime', e.target.value)}
+              placeholder="예: 20분"
+            />
+            <Input
+              label="인분"
+              value={recipe.servings}
+              onChange={(e) => updateField('servings', e.target.value)}
+              placeholder="예: 2인분"
+            />
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl border p-4">
+          <IngredientEditor
+            ingredients={recipe.ingredients}
+            onChange={(ingredients) => updateField('ingredients', ingredients)}
+          />
+          {errors.ingredients && (
+            <p className="text-sm text-destructive mt-2">{errors.ingredients}</p>
+          )}
+        </div>
+
+        <div className="bg-card rounded-xl border p-4">
+          <BlockEditor
+            blocks={recipe.blockList}
+            onChange={(blockList) => updateField('blockList', blockList)}
+          />
+          {errors.blockList && (
+            <p className="text-sm text-destructive mt-2">{errors.blockList}</p>
+          )}
+        </div>
+
+        <div className="flex gap-3 justify-end pt-4">
+          <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
+            취소
+          </Button>
+          <Button type="submit">
+            <Save className="w-4 h-4" />
+            {isEdit ? '수정하기' : '등록하기'}
+          </Button>
+        </div>
+      </form>
     </div>
-  );
+  )
 }

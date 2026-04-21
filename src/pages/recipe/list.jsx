@@ -7,6 +7,7 @@ import RecipeCard from '../../components/recipe/RecipeCard'
 import FloatingActionButton from '../../components/common/FloatingActionButton'
 import EmptyState from '../../components/common/EmptyState'
 import { SkeletonCard } from '../../components/common/Skeleton'
+import { useToast } from '../../components/common/Toast'
 
 function getMemberIdFromToken() {
   const token = localStorage.getItem("token")
@@ -22,8 +23,10 @@ function getMemberIdFromToken() {
 
 export default function RecipeList() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   const memberId = getMemberIdFromToken()
+
   const PAGE_SIZE = 20
 
   const [search, setSearch] = useState('')
@@ -33,7 +36,6 @@ export default function RecipeList() {
 
   const [loading, setLoading] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const [loadingMap, setLoadingMap] = useState({})
 
   /* =========================
      FETCH
@@ -97,75 +99,35 @@ export default function RecipeList() {
   }
 
   /* =========================
-     LIKE & BOOKMARK (핵심)
+     LIKE
   ========================= */
-  const toggle = useCallback(async (recipeId, type) => {
+  const toggleLike = useCallback(async (recipeId) => {
+    if (!memberId) return alert("로그인 필요")
 
-    if (!memberId) {
-      alert("로그인 필요")
-      return
-    }
-    const key = `${type}-${recipeId}`
-    if (loadingMap[key]) return
-    let backup
-
-    // 레시피 세팅
-    setRecipes(prev => {
-      backup = prev.find(r => r.recipeId === recipeId)
-
-      return prev.map(r => {
-        if (r.recipeId !== recipeId) return r
-
-        if (type === 'like') {
-          const next = !r.liked
-          return {
-            ...r,
-            liked: next,
-            likeCount: next
-              ? r.likeCount + 1
-              : r.likeCount - 1
-          }
-        }
-        if (type === 'bookmark') {
-          return {
-            ...r,
-            bookmarked: !r.bookmarked
-          }
-        }
-        return r
-      })
-    })
-    setLoadingMap(prev => ({ ...prev, [key]: true }))
+    setRecipes(prev =>
+      prev.map(r =>
+        r.recipeId === recipeId
+          ? {
+              ...r,
+              liked: !r.liked,
+              likeCount: r.liked ? r.likeCount - 1 : r.likeCount + 1
+            }
+          : r
+      )
+    )
 
     try {
-      if (type === 'like') {
-        await recipeAPI.like(recipeId)
-      } else {
-        await recipeAPI.bookmark(recipeId)
-      }
+      await recipeAPI.like(recipeId)
     } catch (err) {
       console.error(err)
-
-      // 롤백
-      setRecipes(prev =>
-        prev.map(r =>
-          r.recipeId === recipeId ? backup : r
-        )
-      )
-    } finally {
-      setLoadingMap(prev => {
-        const copy = { ...prev }
-        delete copy[key]
-        return copy
-      })
     }
-  }, [memberId, loadingMap])
+  }, [memberId])
 
   /* =========================
      UI
   ========================= */
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4">
+    <div className="space-y-6">
 
       {/* HEADER */}
       <div className="flex flex-col gap-4">
@@ -201,8 +163,8 @@ export default function RecipeList() {
 
       {/* LIST */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
@@ -217,20 +179,18 @@ export default function RecipeList() {
         <div className="relative">
 
           {/* GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleRecipes.map(recipe => (
               <RecipeCard
                 key={recipe.recipeId}
                 recipe={recipe}
-                onLike={(id) => toggle(id, 'like')}
-                onBookmark={(id) => toggle(id, 'bookmark')}
-                loadingMap={loadingMap}
+                onLike={() => toggleLike(recipe.recipeId)}
                 onClick={() => navigate(`/recipe/${recipe.recipeId}`)}
               />
             ))}
           </div>
 
-          {/* MORE */}
+          {/* FADE + MORE BUTTON */}
           {hasMore && (
             <div className="absolute bottom-0 left-0 w-full h-44
               bg-gradient-to-t from-white via-white/80 to-transparent

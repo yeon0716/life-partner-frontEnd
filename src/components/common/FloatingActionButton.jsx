@@ -6,7 +6,7 @@ export default function FloatingActionButton({
   icon: Icon = Plus,
   className = "",
   label
-}) {  
+}) {
   return (
     <button
       onClick={onClick}

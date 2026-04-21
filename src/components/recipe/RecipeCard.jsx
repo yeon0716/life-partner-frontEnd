@@ -1,20 +1,42 @@
-import { Heart, Clock, Users } from 'lucide-react'
+import { Heart, Bookmark, Clock, Users } from 'lucide-react'
 import Card from '../common/Card'
 import { clsx } from 'clsx'
 
-export default function RecipeCard({ recipe, onLike, onClick }) {
+export default function RecipeCard({
+  recipe,
+  onLike,
+  onBookmark,
+  onClick
+}) {
 
-const handleLike = (e) => {
-  e.stopPropagation()
-  console.log("like click")
+  /* =========================
+     LIKE
+  ========================= */
+  const handleLike = (e) => {
+    e.stopPropagation()
 
-    const memberId = localStorage.getItem("memberId");
-    console.log("tken - ", memberId);
-    if (!memberId) {
+    const token = localStorage.getItem("token")
+    if (!token) {
       alert("로그인 후 이용 가능합니다.")
       return
     }
-    onLike(recipe.recipeId ?? recipe.id)
+
+    onLike(recipe.recipeId)
+  }
+
+  /* =========================
+     BOOKMARK
+  ========================= */
+  const handleBookmark = (e) => {
+    e.stopPropagation()
+
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("로그인 후 이용 가능합니다.")
+      return
+    }
+
+    onBookmark(recipe.recipeId)
   }
 
   return (
@@ -32,21 +54,40 @@ const handleLike = (e) => {
           }}
         />
 
-        {/* LIKE BUTTON */}
-        <button
-          onClick={handleLike}
-          className={clsx(
-            "absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm transition-all",
-            "hover:scale-110 active:scale-95"
-          )}
-        >
-          <Heart
-            className={clsx(
-              "w-5 h-5 transition-colors",
-              recipe.liked ? "fill-red-500 text-red-500" : "text-gray-400"
-            )}
-          />
-        </button>
+        {/* 🔥 우측 상단 버튼 영역 */}
+        <div className="absolute top-3 right-3 flex gap-2">
+
+          {/* BOOKMARK */}
+          <button
+            onClick={handleBookmark}
+            className="p-2 rounded-full bg-white/90 backdrop-blur-sm hover:scale-110 active:scale-95"
+          >
+            <Bookmark
+              className={clsx(
+                "w-4 h-4",
+                recipe.bookmarked
+                  ? "fill-black text-black"
+                  : "text-gray-400"
+              )}
+            />
+          </button>
+
+          {/* LIKE */}
+          <button
+            onClick={handleLike}
+            className="p-2 rounded-full bg-white/90 backdrop-blur-sm hover:scale-110 active:scale-95"
+          >
+            <Heart
+              className={clsx(
+                "w-4 h-4",
+                recipe.liked
+                  ? "fill-red-500 text-red-500"
+                  : "text-gray-400"
+              )}
+            />
+          </button>
+
+        </div>
 
         {/* CATEGORY */}
         <span className="absolute bottom-3 left-3 px-2 py-1 text-xs font-medium bg-black/60 text-white rounded-md">

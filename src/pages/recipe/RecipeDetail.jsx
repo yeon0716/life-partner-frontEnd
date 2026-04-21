@@ -42,6 +42,8 @@ function RecipeDetail() {
       const res = await recipeAPI.detail(id)
       const data = res.data
 
+      console.log(data);
+
       const token = localStorage.getItem("token")
       let loginMemberId = null
 
@@ -172,7 +174,7 @@ function RecipeDetail() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-8">
+    <div className="w-full max-w-5xl mx-auto px-6 py-8 space-y-8">
 
       {/* 뒤로가기 + 액션 */}
       <div className="flex items-center justify-between">
@@ -185,10 +187,20 @@ function RecipeDetail() {
         </button>
 
         <div className="flex gap-2">
-          <button onClick={()=> toggle('like')} className="p-2 hover:bg-gray-100 rounded-lg">
-            <Heart className={clsx("w-5 h-5", liked && "fill-red-500 text-red-500")} />
+          <button
+            onClick={() => toggle('like')}
+            className="flex items-center gap-1 p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <Heart
+              className={clsx(
+                "w-5 h-5",
+                liked && "fill-red-500 text-red-500"
+              )}
+            />
+            <span className="text-sm">
+              {recipe?.likeCount ?? 0}
+            </span>
           </button>
-
           <button onClick={()=> toggle('like')} className="p-2 hover:bg-gray-100 rounded-lg">
             <Bookmark className={clsx("w-5 h-5", bookmarked && "fill-black text-black")} />
           </button>
@@ -200,7 +212,7 @@ function RecipeDetail() {
           {isMyPost && (
             <>
               <button
-                onClick={() => navigate(`/recipeEdit/${id}`)}
+                onClick={() => navigate(`/recipe/edit/${id}`)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <Edit className="w-5 h-5" />
@@ -224,7 +236,7 @@ function RecipeDetail() {
           className="w-full h-72 object-cover"
         />
         <span className="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 text-sm rounded-lg">
-          {recipe.category}
+          {recipe.categoryName}
         </span>
       </div>
 
