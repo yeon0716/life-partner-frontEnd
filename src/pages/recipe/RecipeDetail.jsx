@@ -1,140 +1,284 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, ChefHat, Heart, Bookmark, Share2, CheckCircle } from 'lucide-react'
+import { recipeAPI } from '../../api/recipe/recipeApi'
+import {
+  ArrowLeft,
+  Clock,
+  Users,
+  ChefHat,
+  Heart,
+  Edit,
+  Trash2,
+  Check,
+  Bookmark,
+  Share2
+} from 'lucide-react'
+
+import Button from '../../components/common/Button'
+import Skeleton from '../../components/common/Skeleton'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
+import { useToast } from '../../components/common/Toast'
+import clsx from 'clsx'
 
 function RecipeDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { addToast } = useToast()
+
+  const [recipe, setRecipe] = useState(null)
   const [liked, setLiked] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
-  const [completedSteps, setCompletedSteps] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [checkedIngredients, setCheckedIngredients] = useState(new Set())
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isMyPost, setIsMyPost] = useState(false)
 
-  const recipe = {
-    id: parseInt(id),
-    name: '10분 완성 간장계란밥',
-    category: '한식',
-    difficulty: '쉬움',
-    time: '10분',
-    servings: '1인분',
-    likes: 234,
-    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=400&fit=crop',
-    description: '바쁜 아침이나 혼밥할 때 딱! 10분이면 완성되는 간단하고 맛있는 간장계란밥 레시피입니다.',
-    ingredients: [
-      { name: '밥', amount: '1공기' },
-      { name: '계란', amount: '2개' },
-      { name: '간장', amount: '1큰술' },
-      { name: '참기름', amount: '1작은술' },
-      { name: '대파', amount: '약간' },
-      { name: '깨', amount: '약간' },
-    ],
-    steps: [
-      '밥을 그릇에 담아 준비합니다.',
-      '프라이팬에 기름을 두르고 계란 프라이를 만듭니다.',
-      '밥 위에 계란 프라이를 올립니다.',
-      '간장과 참기름을 뿌립니다.',
-      '송송 썬 대파와 깨를 올려 완성합니다.',
-    ],
-    tips: '계란 노른자를 터뜨려 밥과 함께 비벼 먹으면 더 맛있어요!'
+  useEffect(() => {
+    fetchDetail()
+  }, [id])
+
+  const fetchDetail = async () => {
+    try {
+      const res = await recipeAPI.detail(id)
+      const data = res.data
+
+      const token = localStorage.getItem("token")
+      let loginMemberId = null
+
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        loginMemberId = Number(payload.memberId)
+      }
+
+      const writerId = Number(data.memberId)
+      setIsMyPost(loginMemberId && loginMemberId === writerId)
+
+      setRecipe(data)
+      setLiked(data.liked === 1)
+      setBookmarked(data.bookmarked === 1)
+
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const toggleStep = (index) => {
-    if (completedSteps.includes(index)) {
-      setCompletedSteps(completedSteps.filter(i => i !== index))
-    } else {
-      setCompletedSteps([...completedSteps, index])
+  const toggleIngredient = (ingredientId) => {
+    setCheckedIngredients((prev) => {
+      const next = new Set(prev)
+      next.has(ingredientId) ? next.delete(ingredientId) : next.add(ingredientId)
+      return next
+    })
+  }
+  // 좋아요 & 북마크
+  const toggle = async (type) => {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+      alert("로그인 후 이용하실 수 있습니다.")
+      return
+    }
+    if (loading) return
+    setLoading(true)
+
+    try {
+      if (type === 'like') {
+        const nextLiked = !liked
+        await recipeAPI.like(id)
+
+        setLiked(nextLiked)
+        setRecipe(prev => ({
+          ...prev,
+          likeCount: nextLiked
+            ? prev.likeCount + 1
+            : prev.likeCount - 1
+        }))
+      }
+
+      if (type === 'bookmark') {
+        await recipeAPI.bookmark(id)
+        setBookmarked(prev => !prev)
+      }
+
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+  const handleDelete = async () => {
+    try {
+      await recipeAPI.delete(id)
+      addToast({ type: 'success', message: '레시피 삭제됨' })
+      navigate("/recipe")
+    } catch (err) {
+      console.error(err)
     }
   }
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href)
-    alert('링크가 복사되었습니다.')
+    addToast({ type: 'success', message: '링크 복사 완료' })
+  }
+
+  const renderBlocks = () => {
+    if (!recipe?.blockList) return null
+
+    return recipe.blockList.map((b, i) => (
+      <div key={i} className="flex gap-4">
+        <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center text-xs">
+          {i + 1}
+        </div>
+
+        <div className="flex-1">
+          {b.blockType === 'TEXT' ? (
+            <p className="text-gray-700 leading-relaxed">{b.content}</p>
+          ) : (
+            <img
+              src={
+                b.content.startsWith("http")
+                  ? b.content
+                  : `${process.env.REACT_APP_API_BASE_URL}${b.content}`
+              }
+              className="rounded-xl w-full max-w-md object-cover mt-2"
+              alt=""
+            />
+          )}
+        </div>
+      </div>
+    ))
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-6 w-1/2" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+    )
+  }
+
+  if (!recipe) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <p className="text-gray-500 mb-4">레시피 없음</p>
+        <Button onClick={() => navigate('/recipe')}>목록</Button>
+      </div>
+    )
   }
 
   return (
-    <div className="page-container">
-      <button className="back-button" onClick={() => navigate(-1)}>
-        <ArrowLeft size={20} />
-        <span>목록으로</span>
-      </button>
+    <div className="max-w-3xl mx-auto p-6 space-y-8">
 
-      <article className="recipe-detail">
-        <img src={recipe.image} alt={recipe.name} className="recipe-detail-image" />
+      {/* 뒤로가기 + 액션 */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate('/recipe')}
+          className="flex items-center gap-2 text-gray-500 hover:text-black"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          목록
+        </button>
 
-        <header className="recipe-detail-header">
-          <div className="recipe-badges">
-            <span className="badge category">{recipe.category}</span>
-            <span className="badge difficulty">{recipe.difficulty}</span>
-          </div>
-          <h1 className="recipe-detail-title">{recipe.name}</h1>
-          <p className="recipe-description">{recipe.description}</p>
+        <div className="flex gap-2">
+          <button onClick={()=> toggle('like')} className="p-2 hover:bg-gray-100 rounded-lg">
+            <Heart className={clsx("w-5 h-5", liked && "fill-red-500 text-red-500")} />
+          </button>
 
-          <div className="recipe-meta-row">
-            <span className="meta-item">
-              <Clock size={18} />
-              {recipe.time}
-            </span>
-            <span className="meta-item">
-              <Users size={18} />
-              {recipe.servings}
-            </span>
-            <span className="meta-item">
-              <ChefHat size={18} />
-              {recipe.difficulty}
-            </span>
-          </div>
+          <button onClick={()=> toggle('like')} className="p-2 hover:bg-gray-100 rounded-lg">
+            <Bookmark className={clsx("w-5 h-5", bookmarked && "fill-black text-black")} />
+          </button>
 
-          <div className="recipe-actions">
-            <button className={`action-btn ${liked ? 'active' : ''}`} onClick={() => setLiked(!liked)}>
-              <Heart size={20} fill={liked ? 'currentColor' : 'none'} />
-              <span>{recipe.likes + (liked ? 1 : 0)}</span>
-            </button>
-            <button className={`action-btn ${bookmarked ? 'active' : ''}`} onClick={() => setBookmarked(!bookmarked)}>
-              <Bookmark size={20} fill={bookmarked ? 'currentColor' : 'none'} />
-              <span>북마크</span>
-            </button>
-            <button className="action-btn" onClick={handleShare}>
-              <Share2 size={20} />
-              <span>공유</span>
-            </button>
-          </div>
-        </header>
+          <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-lg">
+            <Share2 className="w-5 h-5" />
+          </button>
 
-        <section className="recipe-section">
-          <h2 className="section-title">재료</h2>
-          <ul className="ingredients-list">
-            {recipe.ingredients.map((ing, index) => (
-              <li key={index} className="ingredient-item">
-                <span className="ingredient-name">{ing.name}</span>
-                <span className="ingredient-amount">{ing.amount}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="recipe-section">
-          <h2 className="section-title">조리 순서</h2>
-          <ol className="steps-list">
-            {recipe.steps.map((step, index) => (
-              <li 
-                key={index} 
-                className={`step-item ${completedSteps.includes(index) ? 'completed' : ''}`}
-                onClick={() => toggleStep(index)}
+          {isMyPost && (
+            <>
+              <button
+                onClick={() => navigate(`/recipeEdit/${id}`)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
-                <span className="step-number">{index + 1}</span>
-                <span className="step-text">{step}</span>
-                {completedSteps.includes(index) && <CheckCircle size={20} className="step-check" />}
-              </li>
-            ))}
-          </ol>
-        </section>
+                <Edit className="w-5 h-5" />
+              </button>
 
-        {recipe.tips && (
-          <section className="recipe-section tips">
-            <h2 className="section-title">요리 팁</h2>
-            <p className="tips-content">{recipe.tips}</p>
-          </section>
-        )}
-      </article>
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 이미지 */}
+      <div className="relative rounded-xl overflow-hidden">
+        <img
+          src={`${process.env.REACT_APP_API_BASE_URL}${recipe.thumbnailUrl}`}
+          className="w-full h-72 object-cover"
+        />
+        <span className="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 text-sm rounded-lg">
+          {recipe.category}
+        </span>
+      </div>
+
+      {/* 제목 */}
+      <div>
+        <h1 className="text-3xl font-bold">{recipe.title}</h1>
+        <p className="text-gray-500 mt-1">{recipe.description}</p>
+      </div>
+
+      {/* 메타 */}
+      <div className="flex gap-3 flex-wrap text-sm text-gray-600">
+        <span className="flex items-center gap-1"><Clock size={16}/> {recipe.cookingTime}</span>
+        <span className="flex items-center gap-1"><ChefHat size={16}/> {recipe.difficulty}</span>
+        <span className="flex items-center gap-1"><Users size={16}/> {recipe.servings}</span>
+      </div>
+
+      {/* 재료 */}
+      <div className="bg-white border rounded-xl p-4">
+        <h2 className="font-semibold mb-3">재료</h2>
+
+        <div className="space-y-2">
+          {recipe.ingredientList?.map((i, idx) => (
+            <button
+              key={idx}
+              onClick={() => toggleIngredient(i.id || idx)}
+              className={clsx(
+                "flex items-center justify-between w-full p-3 rounded-lg",
+                checkedIngredients.has(i.id || idx)
+                  ? "bg-gray-100 line-through text-gray-400"
+                  : "hover:bg-gray-50"
+              )}
+            >
+              <span>{i.name || i}</span>
+              <span className="text-sm text-gray-500">{i.amount}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 조리 순서 */}
+      <div className="bg-white border rounded-xl p-4 space-y-4">
+        <h2 className="font-semibold">조리 순서</h2>
+        {renderBlocks()}
+      </div>
+
+      {/* 삭제 */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDelete}
+        title="레시피 삭제"
+        message="삭제하시겠습니까?"
+        confirmText="삭제"
+      />
     </div>
   )
 }

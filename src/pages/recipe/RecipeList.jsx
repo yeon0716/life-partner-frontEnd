@@ -1,41 +1,67 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { UtensilsCrossed, Search, Bookmark, BookmarkCheck, Heart } from 'lucide-react'
-import { recipeAPI } from '../../api/recipe/recipeApi'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Search, Plus } from 'lucide-react'
 
-function RecipeList() {
-  const [searchTerm, setSearchTerm] = useState('')
+import { recipeAPI } from '../../api/recipe/recipeApi'
+import RecipeCard from '../../components/recipe/RecipeCard'
+import FloatingActionButton from '../../components/common/FloatingActionButton'
+import EmptyState from '../../components/common/EmptyState'
+import { SkeletonCard } from '../../components/common/Skeleton'
+import { useToast } from '../../components/common/Toast'
+
+function getMemberIdFromToken() {
+  const token = localStorage.getItem("token")
+  if (!token) return null
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.memberId || null
+  } catch {
+    return null
+  }
+}
+
+export default function RecipeList() {
+  const navigate = useNavigate()
+  const { addToast } = useToast()
+
+  const memberId = getMemberIdFromToken()
+
+  const PAGE_SIZE = 20
+
+  const [search, setSearch] = useState('')
   const [categories, setCategories] = useState([])
   const [recipes, setRecipes] = useState([])
   const [categoryId, setCategoryId] = useState(null)
 
-  const [page, setPage] = useState(1)
-  const [size] = useState(6)
-
   const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-
-  const [loadingMap, setLoadingMap] = useState({})
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   /* =========================
-     데이터 호출
+     FETCH
   ========================= */
   useEffect(() => {
     fetchRecipes()
-  }, [page, categoryId, searchTerm])
+    fetchCategories()
+  }, [search, categoryId])
 
   const fetchRecipes = async () => {
     setLoading(true)
 
     try {
-      const res = await recipeAPI.list(page, size, searchTerm, categoryId)
-      const newData = res.data || []
+      const res = await recipeAPI.list(1, 1000, search, categoryId)
+      const data = res.data || []
 
-      setRecipes(prev =>
-        page === 1 ? newData : [...prev, ...newData]
-      )
+      const safe = data.map(r => ({
+        ...r,
+        likeCount: r.likeCount ?? 0,
+        liked: r.liked === 1,
+        bookmarked: r.bookmarked === 1,
+      }))
 
-      setHasMore(newData.length === size)
+      setRecipes(safe)
+      setVisibleCount(PAGE_SIZE)
+
     } catch (err) {
       console.error(err)
     } finally {
@@ -43,16 +69,10 @@ function RecipeList() {
     }
   }
 
-  /* =========================
-     카테고리
-  ========================= */
-  useEffect(() => {
-    fetchCategories()
-  }, [])
-
   const fetchCategories = async () => {
     try {
       const res = await recipeAPI.getCategories()
+
       setCategories([
         { categoryId: null, categoryName: '전체' },
         ...(res.data || [])
@@ -63,238 +83,135 @@ function RecipeList() {
   }
 
   /* =========================
-     통합 toggle (like / bookmark)
+     MORE
   ========================= */
-  const toggle = async (recipeId, type) => {
-    const key = `${type}-${recipeId}`
-    if (loadingMap[key]) return
+  const visibleRecipes = useMemo(
+    () => recipes.slice(0, visibleCount),
+    [recipes, visibleCount]
+  )
 
-    const current = recipes.find(r => r.recipeId === recipeId)
+  const hasMore = visibleCount < recipes.length
 
-    setLoadingMap(prev => ({
-      ...prev,
-      [key]: true,
-    }))
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + PAGE_SIZE)
+  }
 
-    // optimistic update
+  /* =========================
+     LIKE
+  ========================= */
+  const toggleLike = useCallback(async (recipeId) => {
+    if (!memberId) return alert("로그인 필요")
+
     setRecipes(prev =>
-      prev.map(r => {
-        if (r.recipeId !== recipeId) return r
-
-        if (type === 'like') {
-          return {
-            ...r,
-            liked: !r.liked,
-            likes: r.liked ? r.likes - 1 : r.likes + 1,
-          }
-        }
-
-        if (type === 'bookmark') {
-          return {
-            ...r,
-            bookmarked: !r.bookmarked,
-          }
-        }
-
-        return r
-      })
+      prev.map(r =>
+        r.recipeId === recipeId
+          ? {
+              ...r,
+              liked: !r.liked,
+              likeCount: r.liked ? r.likeCount - 1 : r.likeCount + 1
+            }
+          : r
+      )
     )
 
     try {
-      if (type === 'like') {
-        await recipeAPI.like(recipeId)
-      } else if (type === 'bookmark') {
-        await recipeAPI.bookmark(recipeId)
-      }
+      await recipeAPI.like(recipeId)
     } catch (err) {
       console.error(err)
-
-      // rollback
-      setRecipes(prev =>
-        prev.map(r =>
-          r.recipeId === recipeId ? current : r
-        )
-      )
-    } finally {
-      setLoadingMap(prev => {
-        const copy = { ...prev }
-        delete copy[key]
-        return copy
-      })
     }
-  }
+  }, [memberId])
 
   /* =========================
      UI
   ========================= */
   return (
-    <div className="page-container">
+    <div className="space-y-6">
 
       {/* HEADER */}
-      <div className="page-header">
-        <h1 className="page-title">
-          <UtensilsCrossed size={24} />
-          레시피
-        </h1>
-      </div>
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold">레시피</h1>
 
-      {/* SEARCH */}
-      <div className="search-bar">
-        <Search size={18} />
-        <input
-          type="text"
-          placeholder="레시피 검색"
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value)
-            setRecipes([])
-            setPage(1)
-            setHasMore(true)
-          }}
-        />
-      </div>
+        {/* SEARCH */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            className="w-full h-11 pl-10 pr-4 border rounded-lg text-sm"
+            placeholder="레시피 검색..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
-      {/* CATEGORY */}
-      <div className="filter-tabs">
-        {categories.map(cat => (
-          <button
-            key={cat.categoryId ?? 'all'}
-            className={`filter-tab ${categoryId === cat.categoryId ? 'active' : ''}`}
-            onClick={() => {
-              setCategoryId(cat.categoryId)
-              setRecipes([])
-              setPage(1)
-              setHasMore(true)
-            }}
-          >
-            {cat.categoryName}
-          </button>
-        ))}
+        {/* CATEGORY */}
+        <div className="flex gap-2 overflow-x-auto">
+          {categories.map(cat => (
+            <button
+              key={cat.categoryId ?? 'all'}
+              onClick={() => setCategoryId(cat.categoryId)}
+              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap
+                ${categoryId === cat.categoryId
+                  ? 'bg-black text-white'
+                  : 'bg-gray-100 text-gray-600'}`}
+            >
+              {cat.categoryName}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* LIST */}
-      <div className="recipe-grid">
-        {recipes.map(recipe => (
-          <Link
-            key={recipe.recipeId}
-            to={`/recipe/${recipe.recipeId}`}
-            className="recipe-card"
-            style={{ position: 'relative' }}
-          >
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : recipes.length === 0 ? (
+        <EmptyState
+          title="레시피 없음"
+          description="조건에 맞는 레시피가 없습니다"
+          action={() => navigate('/recipe/edit')}
+          actionLabel="등록하기"
+        />
+      ) : (
+        <div className="relative">
 
-            {/* IMAGE */}
-            <div className="recipe-img-wrapper">
-              <img
-                src={`${process.env.REACT_APP_API_BASE_URL}${recipe.thumbnailUrl}`}
-                alt={recipe.title}
-                onError={(e) => {
-                  e.target.src = '/default-recipe.png'
-                }}
+          {/* GRID */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {visibleRecipes.map(recipe => (
+              <RecipeCard
+                key={recipe.recipeId}
+                recipe={recipe}
+                onLike={() => toggleLike(recipe.recipeId)}
+                onClick={() => navigate(`/recipe/${recipe.recipeId}`)}
               />
+            ))}
+          </div>
 
-              {/* OVERLAY */}
-              <div className="recipe-overlay">
-
-                {/* BOOKMARK */}
-                <button
-                    disabled={loadingMap[`bookmark-${recipe.recipeId}`]}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      toggle(recipe.recipeId, 'bookmark')
-                    }}
-                    style={{
-                      pointerEvents: 'auto',
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                  {recipe.bookmarked ? (
-                    <BookmarkCheck size={16} fill="currentColor" className="text-primary" />
-                  ) : (
-                    <Bookmark size={16} />
-                  )}
-                </button>
-
-                <div className="category-badge">
-                  {recipe.categoryName}
-                </div>
-              </div>
+          {/* FADE + MORE BUTTON */}
+          {hasMore && (
+            <div className="absolute bottom-0 left-0 w-full h-44
+              bg-gradient-to-t from-white via-white/80 to-transparent
+              flex items-end justify-center"
+            >
+              <button
+                onClick={handleLoadMore}
+                className="mb-6 px-6 py-2 bg-black text-white rounded-lg shadow"
+              >
+                더보기 ({recipes.length - visibleCount}개 남음)
+              </button>
             </div>
+          )}
 
-            {/* BODY */}
-            <div className="recipe-card-body">
-              <div className="recipe-title">{recipe.title}</div>
-
-              <div className="recipe-meta">
-
-                <span>🍳 간단 레시피</span>
-
-                {/* LIKE */}
-                <span
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    toggle(recipe.recipeId, 'like')
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Heart
-                    size={16}
-                    fill={recipe.liked ? 'red' : 'none'}
-                    color={recipe.liked ? 'red' : 'black'}
-                  />
-                  {recipe.likes}
-                </span>
-
-              </div>
-            </div>
-
-          </Link>
-        ))}
-      </div>
-
-      {/* EMPTY */}
-      {!loading && recipes.length === 0 && (
-        <div className="empty-box">
-          검색 결과가 없습니다 😢
         </div>
       )}
 
-      {/* LOADING */}
-      {loading && <div>로딩중...</div>}
-
-      {/* MORE */}
-      {hasMore && !loading && (
-        <div className="text-center mt-4">
-          <button
-            className="load-more-btn"
-            onClick={() => setPage(prev => prev + 1)}
-          >
-            더보기
-          </button>
-        </div>
-      )}
-
-      {!hasMore && recipes.length > 0 && (
-        <div className="empty-box">
-          마지막 레시피입니다
-        </div>
-      )}
+      {/* FAB */}
+      <FloatingActionButton
+        onClick={() => navigate('/recipe/edit')}
+        icon={Plus}
+        label="레시피 등록"
+      />
     </div>
   )
 }
-
-export default RecipeList

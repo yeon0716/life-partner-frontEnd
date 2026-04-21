@@ -1,30 +1,72 @@
-import axios from "axios";
+import axios from "axios"
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
-  withCredentials: true,
-});
+})
 
-// 🔐 요청 인터셉터 (토큰 자동 첨부)
+/* =========================
+   REQUEST
+========================= */
 api.interceptors.request.use((config) => {
-  // const token = localStorage.getItem("accessToken");
-
-  // if (token) {
-  //   config.headers.Authorization = `Bearer ${token}`;
-  // }
-
-  return config;
-});
-
-// 🔐 401 처리 (로그인 만료)
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token")
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`
   }
 
-  return config;
-});
+  return config
+})
 
-export default api;
+/* =========================
+   REFRESH CONTROL
+========================= */
+let refreshPromise = null
+
+api.interceptors.response.use(
+  res => res,
+  async err => {
+
+    const originalRequest = err.config
+
+    // 401만 처리
+    if (err.response?.status === 401 && !originalRequest._retry) {
+
+      originalRequest._retry = true
+
+      try {
+
+        // refresh 중복 방지
+        if (!refreshPromise) {
+          refreshPromise = axios.post(
+            `${process.env.REACT_APP_API_BASE_URL}/api/member/refresh`,
+            {},
+            { withCredentials: true }
+          )
+        }
+
+        const res = await refreshPromise
+        refreshPromise = null
+
+        const newToken =
+          res.data.accessToken ||
+          res.data.token ||
+          res.data.data?.accessToken
+
+        localStorage.setItem("token", newToken)
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+
+        return api(originalRequest)
+
+      } catch (e) {
+        refreshPromise = null
+        localStorage.clear()
+        window.location.href = "/login"
+      }
+    }
+
+    return Promise.reject(err)
+  }
+)
+
+export default api

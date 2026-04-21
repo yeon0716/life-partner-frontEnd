@@ -9,8 +9,7 @@ export default function Login() {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    rememberMe: false
+    password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
@@ -36,28 +35,26 @@ export default function Login() {
     return newErrors
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors)
-      return
-    }
-    try {
-      const res = await memberAPI.login(formData);
+ const handleSubmit = async (e) => {
+  e.preventDefault()
 
-      if (res.data?.token) {
-        localStorage.setItem("accessToken", res.data.token);
-      }
+  try {
+    const res = await memberAPI.login(formData)
 
-      toast.success("로그인 성공!");
-      navigate("/");
+    localStorage.setItem("token", res.data.accessToken)
+    localStorage.setItem("refreshToken", res.data.refreshToken)
+    localStorage.setItem("memberId", res.data.memberId)
 
-    } catch (err) {
-      toast.error("로그인 실패");
-      console.log(err);
-    }
-  };
+    navigate("/recipe")
+
+  } catch (err) {
+    // 🔥 로그인 실패하면 기존 토큰 제거
+    localStorage.removeItem("token")
+    localStorage.removeItem("memberId")
+
+    toast.error("로그인 실패")
+  }
+}
 
  return (
     <div className="auth-container">

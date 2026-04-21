@@ -1,16 +1,26 @@
 import { Outlet } from 'react-router-dom'
-import Sidebar from '../components/Sidebar'
-import Header from '../components/Header'
+
+import Header from '../components/layout/Header'
+import Sidebar from '../components/layout/Sidebar'
 
 function MainLayout() {
   return (
-    <div className="app-container">
+    <div className="flex h-screen bg-gray-50">
+
+      {/* Sidebar */}
       <Sidebar />
-      <div className="main-content">
+
+      {/* Main area */}
+      <div className="flex flex-col flex-1">
+
+        {/* Header */}
         <Header />
-        <main className="content-area">
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+
       </div>
     </div>
   )

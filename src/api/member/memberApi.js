@@ -12,9 +12,11 @@ export const memberAPI = {
     return api.post("/api/member/signup", data);
   },
 
-  login: (data) =>
-    api.post("/api/member/login", data),
-
+  login: (data) => {
+    console.log("data - ", data)
+    return api.post("/api/member/login", data)
+  },
+  
   me: (memberId) =>
     api.get(`/api/member/me?memberId=${memberId}`),
 

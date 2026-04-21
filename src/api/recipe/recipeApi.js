@@ -2,7 +2,7 @@ import api from "../axios";
 
 // 레시피 등록
 export const recipeAPI = {
-  create: (data) => api.post("/api/recipes", data),
+  create: (data) => api.post("/api/recipes/edit", data),
 
   uploadImage: (file) => {
     const formData = new FormData();
@@ -30,7 +30,7 @@ export const recipeAPI = {
 
   detail: (id) => api.get(`/api/recipes/${id}`),
 
-  update: (id, data) => api.put(`/api/recipes/${id}`, data),
+  update: (id, data) => api.put(`/api/recipes/edit/${id}`, data),
 
   delete: (id) => api.delete(`/api/recipes/${id}`),
 
