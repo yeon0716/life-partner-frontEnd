@@ -8,6 +8,8 @@ import RecipeEditor from './pages/recipe/RecipeEditor';
 import RecipeDetail from './pages/recipe/RecipeDetail';
 import MainLayout from './layouts/MainLayout';
 import { ToastProvider } from './components/common/Toast';
+import AccountPage from './pages/account/AccountPage';
+import AccountDashboard from './pages/account/AccountDashboard';
 
 function App() {
   return (
@@ -25,6 +27,7 @@ function App() {
               <Route path="/recipe/edit" element={<RecipeEditor />} />
               <Route path="/recipe/edit/:id" element={<RecipeEditor />} />
               <Route path="/recipe/:id" element={<RecipeDetail />} />
+              <Route path="/account" element={<AccountDashboard />} />
             </Route>
 
             {/* 기본 */}

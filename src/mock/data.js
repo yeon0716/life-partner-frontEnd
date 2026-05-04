@@ -59,13 +59,42 @@ export const ACCOUNT_CATEGORIES = {
 }
 
 export const mockAccounts = [
+  // April 2026
   { id: "a1", type: "INCOME", category: "급여", amount: 2500000, date: "2026-04-01", memo: "4월 월급" },
   { id: "a2", type: "EXPENSE", category: "식비", amount: 45000, date: "2026-04-15", memo: "마트 장보기" },
   { id: "a3", type: "EXPENSE", category: "교통", amount: 50000, date: "2026-04-10", memo: "교통카드 충전" },
   { id: "a4", type: "EXPENSE", category: "쇼핑", amount: 89000, date: "2026-04-18", memo: "생필품 구매" },
   { id: "a5", type: "EXPENSE", category: "문화", amount: 15000, date: "2026-04-19", memo: "영화 관람" },
   { id: "a6", type: "INCOME", category: "부수입", amount: 200000, date: "2026-04-15", memo: "부업 수입" },
-  { id: "a7", type: "EXPENSE", category: "식비", amount: 32000, date: "2026-04-20", memo: "외식" }
+  { id: "a7", type: "EXPENSE", category: "식비", amount: 32000, date: "2026-04-20", memo: "외식" },
+  { id: "a8", type: "EXPENSE", category: "주거", amount: 650000, date: "2026-04-05", memo: "월세" },
+  { id: "a9", type: "EXPENSE", category: "식비", amount: 28000, date: "2026-04-08", memo: "편의점" },
+  { id: "a10", type: "EXPENSE", category: "의료", amount: 35000, date: "2026-04-12", memo: "병원비" },
+  { id: "a11", type: "EXPENSE", category: "쇼핑", amount: 120000, date: "2026-04-22", memo: "옷 구매" },
+  { id: "a12", type: "EXPENSE", category: "식비", amount: 15000, date: "2026-04-25", memo: "카페" },
+  { id: "a13", type: "EXPENSE", category: "교통", amount: 25000, date: "2026-04-28", memo: "택시비" },
+  // March 2026 (previous month for comparison)
+  { id: "a14", type: "INCOME", category: "급여", amount: 2500000, date: "2026-03-01", memo: "3월 월급" },
+  { id: "a15", type: "EXPENSE", category: "식비", amount: 180000, date: "2026-03-05", memo: "마트" },
+  { id: "a16", type: "EXPENSE", category: "교통", amount: 80000, date: "2026-03-08", memo: "교통비" },
+  { id: "a17", type: "EXPENSE", category: "쇼핑", amount: 250000, date: "2026-03-12", memo: "전자제품" },
+  { id: "a18", type: "EXPENSE", category: "주거", amount: 650000, date: "2026-03-05", memo: "월세" },
+  { id: "a19", type: "EXPENSE", category: "문화", amount: 45000, date: "2026-03-15", memo: "공연 관람" },
+  { id: "a20", type: "INCOME", category: "부수입", amount: 150000, date: "2026-03-20", memo: "부업" },
+  { id: "a21", type: "EXPENSE", category: "의료", amount: 120000, date: "2026-03-22", memo: "치과" },
+  { id: "a22", type: "EXPENSE", category: "식비", amount: 65000, date: "2026-03-25", memo: "외식" },
+  // February 2026
+  { id: "a23", type: "INCOME", category: "급여", amount: 2500000, date: "2026-02-01", memo: "2월 월급" },
+  { id: "a24", type: "EXPENSE", category: "식비", amount: 220000, date: "2026-02-10", memo: "식비" },
+  { id: "a25", type: "EXPENSE", category: "주거", amount: 650000, date: "2026-02-05", memo: "월세" },
+  { id: "a26", type: "EXPENSE", category: "쇼핑", amount: 180000, date: "2026-02-14", memo: "선물" },
+  { id: "a27", type: "EXPENSE", category: "교통", amount: 60000, date: "2026-02-18", memo: "교통비" },
+  // January 2026
+  { id: "a28", type: "INCOME", category: "급여", amount: 2500000, date: "2026-01-01", memo: "1월 월급" },
+  { id: "a29", type: "EXPENSE", category: "식비", amount: 280000, date: "2026-01-15", memo: "새해 회식" },
+  { id: "a30", type: "EXPENSE", category: "주거", amount: 650000, date: "2026-01-05", memo: "월세" },
+  { id: "a31", type: "EXPENSE", category: "쇼핑", amount: 350000, date: "2026-01-10", memo: "세일" },
+  { id: "a32", type: "INCOME", category: "기타수입", amount: 500000, date: "2026-01-20", memo: "보너스" }
 ]
 
 // Routine Data

@@ -36,7 +36,7 @@ function Sidebar() {
     { path: '/', icon: Home, label: '홈' },
     { path: '/refrigerator', icon: Refrigerator, label: '냉장고' },
     { path: '/tips', icon: Lightbulb, label: '꿀팁아카이브' },
-    { path: '/household', icon: Wallet, label: '가계부' },
+    { path: '/account', icon: Wallet, label: '가계부' },
   ]
 
   const recipeSubMenus = [
