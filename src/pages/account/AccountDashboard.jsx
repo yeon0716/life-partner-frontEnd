@@ -9,7 +9,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog'
 import FloatingActionButton from '../../components/common/FloatingActionButton'
 import { useToast } from '../../components/common/Toast'
 import { useApp } from '../../context/AppContext'
-import { accountAPI } from '../../api/account/accountApi'
+import { accountAPI, accountCategoryAPI } from '../../api/account/accountApi'
 
 export default function AccountDashboard() {
   const [accounts, setAccounts] = useState([])
@@ -139,26 +139,38 @@ export default function AccountDashboard() {
   // =========================
   // 📌 저장
   // =========================
-  const handleSave = (data) => {
-    if (editingItem) {
-      setAccounts(prev =>
-        prev.map(item =>
-          item.accountId === editingItem.accountId
-            ? { ...item, ...data }
-            : item
-        )
-      )
-      addToast('수정 완료', 'success')
-    } else {
-      setAccounts(prev => [
-        { ...data, accountId: Date.now() },
-        ...prev
-      ])
-      addToast('추가 완료', 'success')
-    }
+const handleSave = async (data) => {
+    try {
+      const res = await accountCategoryAPI.getCategoryList(memberId)
 
-    setModalOpen(false)
-    setEditingItem(null)
+      const category = res.data.find(
+        c => c.categoryName === data.categoryName && c.type === data.type
+      )
+
+      if (!category) {
+        addToast("카테고리 없음", "error")
+        return
+      }
+
+      const payload = {
+        memberId,
+        categoryId: category.categoryId,
+        amount: data.amount,
+        type: data.type,
+        title: data.categoryName,
+        content: data.memo
+      }
+
+      await accountAPI.insert(payload)
+
+      addToast("저장 완료", "success")
+
+      await fetchAccounts()
+
+    } catch (e) {
+      console.error(e)
+      addToast("저장 실패", "error")
+    }
   }
 
   // =========================
@@ -212,14 +224,37 @@ export default function AccountDashboard() {
               />
             )}
 
-            <div>
-              {monthlyStats.topSpendingDays.map(d => (
-                <div key={d.day}>
-                  {d.day}일 - {d.amount}
-                </div>
-              ))}
-            </div>
+          <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">
+              📊 지출 많은 날 TOP 3
+            </h4>
 
+            {monthlyStats.topSpendingDays.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                이번 달에는 아직 지출이 없어요 🙂
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {monthlyStats.topSpendingDays.map((d, idx) => (
+                  <div
+                    key={d.day}
+                    className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 flex items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                        {idx + 1}
+                      </div>
+                      <span className="text-sm font-medium">{d.day}일</span>
+                    </div>
+
+                    <span className="text-sm font-semibold text-destructive">
+                      {d.amount.toLocaleString()}원
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
             <MonthComparison
                 memberId={memberId}
                 month={currentMonthStr}

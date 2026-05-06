@@ -14,7 +14,7 @@ import AccountDashboard from './pages/account/AccountDashboard';
 function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      {/* <Toaster position="top-right" /> */}
     <ToastProvider>
         <Routes>
             {/* 로그인 / 회원가입 (사이드바 없음) */}

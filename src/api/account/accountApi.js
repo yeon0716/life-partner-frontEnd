@@ -34,3 +34,15 @@ export const accountAPI = {
   delete: (accountId) =>
     api.delete(`/api/account/${accountId}`)
 };
+
+export const accountCategoryAPI = {
+    getCategoryList: (memberId) =>
+    api.get(`/api/account/categoryList`, {
+      params: { memberId}
+    }),
+
+      // 🔥 추가
+    addCategory: (data) =>
+    api.post(`/api/account/addCategory`, data)
+
+}

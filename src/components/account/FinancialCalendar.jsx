@@ -193,11 +193,15 @@ export default function FinancialCalendar({
                 {day.isCurrentMonth && (data.income > 0 || data.expense > 0) && (
                   <div className="hidden sm:flex flex-col items-center gap-0.5 text-[10px] leading-tight">
                     {data.income > 0 && (
-                      <span className="text-primary font-medium">+{(data.income / 10000).toFixed(0)}만</span>
-                    )}
-                    {data.expense > 0 && (
-                      <span className="text-destructive font-medium">-{(data.expense / 10000).toFixed(0)}만</span>
-                    )}
+                        <span className="text-primary font-medium">
+                          +{data.income.toLocaleString()}원
+                        </span>
+                      )}
+                      {data.expense > 0 && (
+                        <span className="text-destructive font-medium">
+                          -{data.expense.toLocaleString()}원
+                        </span>
+                      )}
                   </div>
                 )}
               </button>
